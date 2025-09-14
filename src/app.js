@@ -6,9 +6,10 @@ const studentRouter = require('./routes/studentRouter.js');
 
 const app = express();
 
+app.use(express.json());
 
 app.use('/', studentRouter);
-app.get('/', Auth, (req,res)=>{
+app.use('/', (req,res)=>{
     res.send("came through middleware");
 })
 
