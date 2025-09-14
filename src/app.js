@@ -6,7 +6,9 @@ const studentRouter = require('./routes/studentRouter.js');
 
 const app = express();
 
+
 app.use(express.json());
+
 
 app.use('/', studentRouter);
 app.use('/', (req,res)=>{

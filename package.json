@@ -4,6 +4,7 @@
     "start": "node src/app.js"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "express": "^5.1.0",
     "mongoose": "^8.18.1",
     "node": "^24.8.0",
