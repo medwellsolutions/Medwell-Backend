@@ -1,10 +1,15 @@
 const express = require('express');
 const connectDB = require('./config/database.js')
+const Auth = require('./middleware/auth.js');
+const studentRouter = require('./routes/studentRouter.js');
+
 
 const app = express();
 
-app.use('/',(req,res)=>{
-    res.send("Server is working");
+
+app.use('/', studentRouter);
+app.get('/', Auth, (req,res)=>{
+    res.send("came through middleware");
 })
 
 
