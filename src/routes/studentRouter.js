@@ -9,7 +9,7 @@ studentRouter.post('/signup/participant', async (req,res)=>{
         await user.save();
         res.send("user Signed-up");
     }catch(err){
-        res.send(err.message);
+        res.status(404).send(err.message);
     }
     
 })
