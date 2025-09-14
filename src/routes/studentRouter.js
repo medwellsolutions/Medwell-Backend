@@ -4,6 +4,7 @@ const studentRouter = express.Router();
 const User = require('../models/userSchema.js');
 const isValidated = require('../utils/validation.js');
 const validator = require('validator');
+const jwt = require('jsonwebtoken');
 
 studentRouter.post('/signup/participant', async (req,res)=>{
 
@@ -46,6 +47,9 @@ studentRouter.post('/login/participant',async (req,res)=>{
     if(!truth){
         throw new Error("Invalid credentials");
     }
+    const token = jwt.sign({_id:user._id},'Medwell123@');
+    res.cookie("token", token);
+
     res.json({
             message:"Login Success",
             data:user
@@ -56,6 +60,22 @@ studentRouter.post('/login/participant',async (req,res)=>{
     }
     
 
+})
+studentRouter.get('/feed/participant',async (req,res)=>{
+    try{
+        const token = req.cookies.token;
+        const decodedToken = jwt.verify(token,"Medwell123@");
+        const user = await User.findById(decodedToken._id);
+        if(user.role!='participant'){
+            throw new Error('User is not autorised to this page');
+        }
+        res.json({
+            message:"token valid",
+            data:user
+        })
+    }catch(err){
+        res.send(err.message);
+    }
 })
 
 
