@@ -1,7 +1,7 @@
 const express = require('express');
 const connectDB = require('./config/database.js')
-const Auth = require('./middleware/auth.js');
-const studentRouter = require('./routes/studentRouter.js');
+const authRouter = require('./routes/authRouter.js');
+const participantRouter = require('./routes/participantRouter.js');
 const cookieParser = require('cookie-parser');
 
 const app = express();
@@ -10,7 +10,9 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/', studentRouter);
+app.use('/', authRouter);
+app.use('/',participantRouter);
+
 app.use('/', (req,res)=>{
     res.send("came through middleware");
 })

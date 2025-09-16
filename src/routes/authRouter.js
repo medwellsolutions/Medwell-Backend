@@ -1,17 +1,20 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
-const studentRouter = express.Router();
+const authRouter = express.Router();
 const User = require('../models/userSchema.js');
 const isValidated = require('../utils/validation.js');
 const validator = require('validator');
 const jwt = require('jsonwebtoken');
 
-studentRouter.post('/signup/participant', async (req,res)=>{
+authRouter.post('/signup/', async (req,res)=>{
 
     
-    const hashedPassword =await bcrypt.hash(req.body.password,10);
-
+    const hashedPassword =await bcrypt.hash(req.body.password,10);  
+    var status = "hold";
     try{
+        if(req.body?.role == 'participant'){
+            status = "accepted";
+        }
         isValidated(req);
         const user =new User({
             firstName:req.body.firstName,
@@ -21,7 +24,7 @@ studentRouter.post('/signup/participant', async (req,res)=>{
             emailId:req.body.emailId,
             gender:req.body.gender,
             role:req.body.role,
-
+            status:status
         });
         await user.save();
         res.send("user Signed-up");
@@ -31,15 +34,16 @@ studentRouter.post('/signup/participant', async (req,res)=>{
     
 })
 
-studentRouter.post('/login/participant',async (req,res)=>{
-    // console.log()
+authRouter.post('/login',async (req,res)=>{
     const emailId = req.body?.emailId;
     const password = req.body?.password;
     try{
-        if(!emailId || !validator.isEmail(emailId) || !password){
+        
+    const user = await User.findOne({emailId,emailId});
+
+    if(!emailId || !validator.isEmail(emailId) || !password){
         throw new Error("Invalid credentials");
     }
-    const user = await User.findOne({emailId,emailId});
     if(!user){
         throw new Error("Invalid Credentials");
     }
@@ -47,7 +51,10 @@ studentRouter.post('/login/participant',async (req,res)=>{
     if(!truth){
         throw new Error("Invalid credentials");
     }
-    const token = jwt.sign({_id:user._id},'Medwell123@');
+    if(user?.status !='accepted'){
+        res.status(401).send("unAuthorized");
+    }
+    const token = jwt.sign({_id:user._id, role:user.role},'Medwell123@');
     res.cookie("token", token);
 
     res.json({
@@ -61,24 +68,10 @@ studentRouter.post('/login/participant',async (req,res)=>{
     
 
 })
-studentRouter.get('/feed/participant',async (req,res)=>{
-    try{
-        const token = req.cookies.token;
-        const decodedToken = jwt.verify(token,"Medwell123@");
-        const user = await User.findById(decodedToken._id);
-        if(user.role!='participant'){
-            throw new Error('User is not autorised to this page');
-        }
-        res.json({
-            message:"token valid",
-            data:user
-        })
-    }catch(err){
-        res.send(err.message);
-    }
-})
 
 
 
 
-module.exports = studentRouter;
+
+
+module.exports = authRouter;

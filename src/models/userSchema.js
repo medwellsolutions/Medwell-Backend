@@ -56,6 +56,15 @@ const userSchema = new mongoose.Schema({
             }
         }
     },
+    status:{
+        type:String,
+        required:true,
+        validate(value){
+            if(value!='hold' && value !='accepted' && value != 'rejected'){
+                throw new Error('status not allowed');
+            }
+        }
+    }
 },
 {
     timestamps:true
