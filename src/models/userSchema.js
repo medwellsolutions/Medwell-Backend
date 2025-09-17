@@ -1,7 +1,29 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
 
-const userSchema = new mongoose.Schema({
+
+const EmailVerifySchema = new mongoose.Schema({
+    otpHash:{
+        type:String
+    },
+    expiresAt:{
+        type:Date
+    },
+    attempts:{
+        type:Number,
+        default:0
+    },
+    resendCount:{
+        type:Number,
+        default:0
+    },
+    lastSentAt:{
+        type:Date
+    }
+},{
+    _id:false
+})
+const UserSchema = new mongoose.Schema({
     firstName:{
         type:String,
         required:true,
@@ -59,18 +81,27 @@ const userSchema = new mongoose.Schema({
     status:{
         type:String,
         required:true,
+        default:"hold",
         validate(value){
             if(value!='hold' && value !='accepted' && value != 'rejected'){
                 throw new Error('status not allowed');
             }
         }
+    },
+    isEmailVerified:{
+        type:Boolean,
+        default:false
+    },
+    emailVerification:{
+        type:EmailVerifySchema,
+        default:{}
     }
+
 },
 {
     timestamps:true
 }
 )
-
-const userModel = mongoose.model("user", userSchema);
+const userModel = mongoose.model("user", UserSchema);
 
 module.exports = userModel;

@@ -9,12 +9,9 @@ const jwt = require('jsonwebtoken');
 authRouter.post('/signup/', async (req,res)=>{
 
     
-    const hashedPassword =await bcrypt.hash(req.body.password,10);  
-    var status = "hold";
+    const hashedPassword =await bcrypt.hash(req.body.password,10);
     try{
-        if(req.body?.role == 'participant'){
-            status = "accepted";
-        }
+        const status = req.user.role === "participant"? "accepted":"hold"
         isValidated(req);
         const user =new User({
             firstName:req.body.firstName,
