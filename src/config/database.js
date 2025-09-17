@@ -1,6 +1,10 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 
+const db = process.env.DB;
+
 const connectDB = async()=>{
-   await mongoose.connect('mongodb+srv://pranaisaireddy:pranaisaireddy@pranaireddycluster.hxkhfks.mongodb.net/MedwellSolutions');
+
+   await mongoose.connect(db);
 }
 module.exports = connectDB;

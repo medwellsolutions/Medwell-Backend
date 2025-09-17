@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const bcrypt = require('bcrypt');
 const authRouter = express.Router();
@@ -6,57 +7,67 @@ const isValidated = require('../utils/validation.js');
 const validator = require('validator');
 const jwt = require('jsonwebtoken');
 
-authRouter.post('/signup/', async (req,res)=>{
-
-    
-    const hashedPassword =await bcrypt.hash(req.body.password,10);
+authRouter.post('/signup', async (req,res)=>{
     try{
-        const status = req.user.role === "participant"? "accepted":"hold"
+        const { firstName, lastName, password, phone, location, age, emailId, gender, role, student } = req.body;
+        const existingUser = await User.findOne({emailId});
+        // console.log(existingUser);
+        if(existingUser){
+            return res.status(409).send("User already exists");
+        }
+        const hashedPassword =await bcrypt.hash(password,10);
+        const status = req.body.role === "participant"? "accepted":"hold"
         isValidated(req);
+        // const numAge = parseInt(age);
         const user =new User({
-            firstName:req.body.firstName,
-            lastName:req.body.lastName,
-            password:hashedPassword,
-            age:req.body.age,
-            emailId:req.body.emailId,
-            gender:req.body.gender,
-            role:req.body.role,
-            status:status
+            firstName,
+            lastName,
+            password: hashedPassword,
+            phone,
+            location,
+            age:parseInt(age),
+            emailId,
+            gender,
+            role,
+            status,
+            student
         });
         await user.save();
-        res.send("user Signed-up");
+        res.status(201).send("user Signed-up");
     }catch(err){
-        res.status(404).send(err.message);
+        res.status(400).send(err.message);
     }
     
 })
 
 authRouter.post('/login',async (req,res)=>{
-    const emailId = req.body?.emailId;
-    const password = req.body?.password;
+    const {emailId,password} = req.body;
     try{
-        
-    const user = await User.findOne({emailId,emailId});
 
     if(!emailId || !validator.isEmail(emailId) || !password){
-        throw new Error("Invalid credentials");
+        return res.status(400).send("Invalid credentials");
     }
+
+    const user = await User.findOne({emailId});
     if(!user){
-        throw new Error("Invalid Credentials");
+        return res.status(401).send("Invalid credentials");
     }
+
     const truth = await bcrypt.compare(password, user.password);
     if(!truth){
-        throw new Error("Invalid credentials");
+        return res.status(401).send("Invalid credentials");
     }
-    if(user?.status !='accepted'){
-        res.status(401).send("unAuthorized");
+    if(user.status !='accepted'){
+        res.status(401).send("Unauthorized");
     }
-    const token = jwt.sign({_id:user._id, role:user.role},'Medwell123@');
+    const token = jwt.sign({_id:user._id, role:user.role}, process.env.SECRET_KEY);
     res.cookie("token", token);
 
+    const userObj = user.toString();
+    delete userObj.password
     res.json({
             message:"Login Success",
-            data:user
+            data:userObj
         })
 
     }catch(err){

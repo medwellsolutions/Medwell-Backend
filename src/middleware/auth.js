@@ -1,11 +1,12 @@
- const jwt = require('jsonwebtoken');
+require('dotenv').config();
+const jwt = require('jsonwebtoken');
 const auth = (req,res,next)=>{
     const token = req.cookies?.token;
     if(!token){
          return res.status(401).send("Invalid token")
     }
     try{
-        req.user = jwt.verify(token,"Medwell123@");
+        req.user = jwt.verify(token,process.env.SECRET_KEY);
         next();
     }catch(err){
         res.send(err.message);

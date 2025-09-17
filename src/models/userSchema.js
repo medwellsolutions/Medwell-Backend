@@ -2,39 +2,43 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 
 
-const EmailVerifySchema = new mongoose.Schema({
-    otpHash:{
-        type:String
-    },
-    expiresAt:{
-        type:Date
-    },
-    attempts:{
-        type:Number,
-        default:0
-    },
-    resendCount:{
-        type:Number,
-        default:0
-    },
-    lastSentAt:{
-        type:Date
-    }
-},{
-    _id:false
-})
+// const EmailVerifySchema = new mongoose.Schema({
+//     otpHash:{
+//         type:String
+//     },
+//     expiresAt:{
+//         type:Date
+//     },
+//     attempts:{
+//         type:Number,
+//         default:0
+//     },
+//     resendCount:{
+//         type:Number,
+//         default:0
+//     },
+//     lastSentAt:{
+//         type:Date
+//     }
+// },{
+//     _id:false
+// })
+const roles = ["participant", "supplier", "non-profit", "sponsor,", "doctor/HCP"];
 const UserSchema = new mongoose.Schema({
     firstName:{
         type:String,
         required:true,
-        minLength:4
+        minLength:4,
+        maxLength:20
     },
     lastName:{
         type:String,
-        required:true
+        required:true,
+        maxLength:20
     },
     emailId:{
         type:String,
+        maxLength:30,
         required:true,
         unique:true,
         lowercase:true,
@@ -45,10 +49,27 @@ const UserSchema = new mongoose.Schema({
             }
         }
     },
+    phone:{
+        type:String,
+        unique:true,
+        required:true,
+        minLength:10,
+        maxLength:15,
+        validate(value){
+            if(!validator.isMobilePhone(value,"any")){
+                throw new Error('phone number is not valid');
+            }
+        }
+    },
+    location:{
+        type:String,
+        required:true,
+        minLength:6,
+        maxLength:100
+    },
     password:{
         type:String,
         required:true,
-        minLength:true,
         trim:true,
         validate(value){
             if(!validator.isStrongPassword(value)){
@@ -58,7 +79,14 @@ const UserSchema = new mongoose.Schema({
     },
     age:{
         type:Number,
-        required:true
+        min:18,
+        max:150,
+        required:true,
+        validate(value){
+            if(!Number.isInteger(value)){
+                throw new Error('given age value is not an integer');
+            }
+        }
     },
     gender:{
         type:String,
@@ -69,17 +97,31 @@ const UserSchema = new mongoose.Schema({
             }
         }
     },
+    student:{
+        type:Boolean,
+        required:true,
+    },
+    college:{
+        type:String,
+        maxLength:70
+    },
+    clubs:{
+        type:Boolean
+    },
     role:{
         type:String,
+        maxLength:15,
         required:true,
+        default:'participant',
         validate(value){
-            if(value!='participant' && value!= 'admin' && value!= 'organizer'){
+            if(!roles.includes(value)){
                 throw new Error("Invalid role");
             }
         }
     },
     status:{
         type:String,
+        maxLength:15,
         required:true,
         default:"hold",
         validate(value){
@@ -88,14 +130,17 @@ const UserSchema = new mongoose.Schema({
             }
         }
     },
-    isEmailVerified:{
-        type:Boolean,
-        default:false
-    },
-    emailVerification:{
-        type:EmailVerifySchema,
-        default:{}
+    passwordChangedAt:{
+        type:Date //useful to invalidate old JWTs
     }
+    // isEmailVerified:{
+    //     type:Boolean,
+    //     default:false
+    // },
+    // emailVerification:{
+    //     type:EmailVerifySchema,
+    //     default:{}
+    // }
 
 },
 {
