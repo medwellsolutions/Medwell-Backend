@@ -64,7 +64,7 @@ authRouter.post('/login',async (req,res)=>{
     res.cookie("token", token);
 
     const userObj = user.toString();
-    delete userObj.password
+    delete userObj.password;
     res.json({
             message:"Login Success",
             data:userObj
