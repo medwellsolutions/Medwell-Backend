@@ -1,5 +1,7 @@
+const { url } = require('inspector');
 const mongoose = require('mongoose');
 const validator = require('validator');
+require('mongoose-type-url');
 
 const INTEREST_AREAS = [
     "Volunteering for health-related nonprofits", 
@@ -24,6 +26,32 @@ const COMMITMENT_OPTIONS = [
     "Take part in a campus or virtual “Wheel of Impact” game ",
     "Share a testimonial about your experience "
 ]
+
+const DOCTOR_PARTICIPATION_OPTIONS = [
+  "Host or co-host a health literacy workshop or educational session",
+  "Participate in a podcast, YouTube Live, or virtual series",
+  "Offer health screenings or wellness assessments (can be basic)",
+  "Provide QR code or link for patients to earn reward points",
+  "Refer patients or staff to engage with Assign It Forward",
+  "Guide staff to encourage positive patient behaviors (per OIG Advisory 2002)",
+  "Submit monthly performance reports (visits, compliance, engagement)",
+  "Sponsor or co-sponsor a cause-based campaign or awareness month",
+  "Serve as a mentor to students or interns (optional)",
+  "Participate in gamified events or campus challenges",
+];
+
+const AWARENESS_CAMPAIGNS = [
+  "Mental Health / Stress Awareness",
+  "Autism & Neurodiversity",
+];
+
+const FileIdRef = new mongoose.Schema({
+  fileId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  filename: { type: String },
+  contentType: { type: String },
+  length: { type: Number },
+  uploadDate: { type: Date },
+}, { _id: false });
 
 
 const DetailsSchema = new mongoose.Schema({
@@ -59,7 +87,7 @@ const DetailsSchema = new mongoose.Schema({
     reviewerNotes:{
         type:String
     }
-},{timestamps:true}, {discriminatorKey:'role'},{collection:'details'});
+},{timestamps:true, discriminatorKey:'role',collection:'details'});
 
 const Details = mongoose.model("Details", DetailsSchema);
 
@@ -98,6 +126,62 @@ const ParticipantSchema = new mongoose.Schema({
 
 const ParticipantDetails = Details.discriminator('participant', ParticipantSchema);
 
+const DoctorSchema = new mongoose.Schema({
+  /* Basic profile */
+  clinicName: { type: String, required: true, trim: true, maxlength: 120 },
+  practiceAddress: { type: String, required: true, trim: true, maxlength: 300 },
+  website: {
+    type: String,
+    trim: true,
+    validate: {
+      validator: v => !v || validator.isURL(v, { require_protocol: true }),
+      message: 'Website must be a valid URL with protocol (e.g. https://...)'
+    }
+  },
+  socialLinks: [{
+    type: String,
+    trim: true,
+    validate: {
+      validator: v => validator.isURL(v, { require_protocol: true }),
+      message: 'Each social link must be a valid URL with protocol'
+    }
+  }],
+
+  /* SECTION 2: Compliance & Documentation */
+  compliance: {
+    businessLicense: { type: FileIdRef, default: undefined },   // PDF
+    w9:             { type: FileIdRef, default: undefined },     // PDF
+    hipaaAcknowledged: { type: Boolean, default: false, required: true },
+    hipaaAcknowledgedAt: { type: Date },
+    logo:    { type: FileIdRef, default: undefined },            // image
+    headshot:{ type: FileIdRef, default: undefined }             // image
+  },
+
+  /* SECTION 3: Participation Options — at least 5 */
+  participationOptions: {
+    type: [{ type: String, enum: DOCTOR_PARTICIPATION_OPTIONS }],
+    default: [],
+    validate: {
+      validator: arr => Array.isArray(arr) && arr.length >= 5,
+      message: 'Please select at least 5 participation activities.'
+    }
+  },
+
+  /* SECTION 4: Alignment & Impact — short answers */
+  alignmentImpact: {
+    promoteEngagement: { type: String, trim: true, maxlength: 2000 }, // “How do you currently promote…”
+    meaningfulCauses: { type: String, trim: true, maxlength: 2000 }   // “What causes… are most meaningful…”
+  },
+
+  /* SECTION 5: Cause & Campaign Fit */
+  campaignFit: {
+    type: [{ type: String, enum: AWARENESS_CAMPAIGNS }],
+    default: []
+  }
+}, { _id: false });
+
+const DoctorDetails =Details.discriminator('doctor', DoctorSchema);
 module.exports = {  Details,
-                    ParticipantDetails
+                    ParticipantDetails,
+                    DoctorDetails
                     };

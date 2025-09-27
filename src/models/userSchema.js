@@ -23,7 +23,7 @@ const validator = require('validator');
 // },{
 //     _id:false
 // })
-const roles = ["participant", "supplier", "non-profit", "sponsor,", "doctor/HCP"];
+const roles = ["participant", "supplier", "non-profit", "sponsor,", "doctor"];
 const UserSchema = new mongoose.Schema({
     firstName:{
         type:String,

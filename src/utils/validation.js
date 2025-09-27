@@ -50,10 +50,10 @@ const isValidated = ({ body }) => {
     if (!role || typeof role !== 'string' || role.length > 15) {
         throw new Error('Role is invalid or too long');
     }
-    // student: required, boolean
-    if (typeof student !== 'boolean') {
-        throw new Error('Student must be true or false');
-    }
+    // // student: required, boolean
+    // if (typeof student !== 'boolean') {
+    //     throw new Error('Student must be true or false');
+    // }
     // college: optional, string, max 70
     if (college !== undefined && (typeof college !== 'string' || college.length > 70)) {
         throw new Error('College must be a string up to 70 characters');
