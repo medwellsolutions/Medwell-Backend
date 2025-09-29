@@ -1,12 +1,43 @@
+
 const express = require('express');
 const doctorRouter  = express.Router();
-const multer = require('multer');
 const { Readable } = require('stream');
 const { GridFSBucket, ObjectId } = require('mongodb');
 const mongoose = require('mongoose');
 const User = require('../models/userSchema.js');
 const {auth, isAuthorized} = require('../middleware/auth.js');
 const {DoctorDetails, Details} = require('../models/ParticipantVetting.js');
+
+const multer = require('multer');
+
+
+/* ------------------------------
+   Route: GET /doctor/file/:fileId
+--------------------------------*/
+doctorRouter.get('/doctor/file/:fileId', auth, isAuthorized('doctor'), async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    if (!fileId || !ObjectId.isValid(fileId)) {
+      return res.status(400).json({ error: 'Invalid fileId' });
+    }
+    const bucket = getBucket();
+    const files = await bucket.find({ _id: new ObjectId(fileId) }).toArray();
+    if (!files || files.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    const file = files[0];
+    res.set({
+      'Content-Type': file.metadata?.contentType || 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${file.filename}"`
+    });
+    const downloadStream = bucket.openDownloadStream(new ObjectId(fileId));
+    downloadStream.on('error', err => res.status(500).json({ error: err.message }));
+    downloadStream.pipe(res);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 /* ------------------------------
    GridFS bucket (safe + cached)
@@ -71,6 +102,8 @@ doctorRouter.post('/doctor/vetting', auth, isAuthorized('doctor'), upload.fields
   ]),
   async (req, res) => {
     try {
+        console.log('req.files:', req.files);
+        console.log('req.body:', req.body);
       if (!req.user || !req.user._id) {
         return res.status(401).json({ error: "Unauthorized: user not found" });
       }
@@ -92,12 +125,15 @@ doctorRouter.post('/doctor/vetting', auth, isAuthorized('doctor'), upload.fields
 
       const up = async (field) => {
         const f = req.files?.[field]?.[0];
+        console.log(`Checking field: ${field}`);
+        console.log('File received:', f);
         if (!f) return undefined;
         // enforce PDF for doc fields
         if (['businessLicense', 'w9'].includes(field) && f.mimetype !== 'application/pdf') {
           throw new Error(`${field} must be a PDF`);
         }
         const fileDoc = await uploadToGridFS(f, bucket);
+        console.log('FileDoc returned from uploadToGridFS:', fileDoc);
         return {
           fileId: fileDoc._id,
           filename: fileDoc.filename,

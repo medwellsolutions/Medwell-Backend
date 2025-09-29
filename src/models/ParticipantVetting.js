@@ -14,6 +14,7 @@ const INTEREST_AREAS = [
     "Helping spread the word about Medwell campaigns", 
     "Earning points to assign to a cause or nonprofit I care about", 
 ]
+
 const COMMITMENT_OPTIONS = [
     "Complete a short wellness self-assessment ",
     "Participate in a 30–60 min workshop, livestream, or Kahoot ",
@@ -180,7 +181,11 @@ const DoctorSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
-const DoctorDetails =Details.discriminator('doctor', DoctorSchema);
+const DoctorDetails = Details.discriminator('doctor', DoctorSchema);
+
+
+
+
 module.exports = {  Details,
                     ParticipantDetails,
                     DoctorDetails
