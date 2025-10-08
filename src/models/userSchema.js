@@ -81,7 +81,6 @@ const UserSchema = new mongoose.Schema({
         type:Number,
         min:18,
         max:150,
-        required:true,
         validate(value){
             if(!Number.isInteger(value)){
                 throw new Error('given age value is not an integer');
@@ -90,7 +89,6 @@ const UserSchema = new mongoose.Schema({
     },
     gender:{
         type:String,
-        required:true,
         validate(value){
             if(value!='male' && value!='female' && value!= 'others'){
                 throw new Error('Gender Invalid');

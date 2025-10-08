@@ -102,8 +102,6 @@ doctorRouter.post('/doctor/vetting', auth, isAuthorized('doctor'), upload.fields
   ]),
   async (req, res) => {
     try {
-        console.log('req.files:', req.files);
-        console.log('req.body:', req.body);
       if (!req.user || !req.user._id) {
         return res.status(401).json({ error: "Unauthorized: user not found" });
       }
@@ -125,8 +123,6 @@ doctorRouter.post('/doctor/vetting', auth, isAuthorized('doctor'), upload.fields
 
       const up = async (field) => {
         const f = req.files?.[field]?.[0];
-        console.log(`Checking field: ${field}`);
-        console.log('File received:', f);
         if (!f) return undefined;
         // enforce PDF for doc fields
         if (['businessLicense', 'w9'].includes(field) && f.mimetype !== 'application/pdf') {
@@ -147,6 +143,9 @@ doctorRouter.post('/doctor/vetting', auth, isAuthorized('doctor'), upload.fields
         req.body.hipaaAcknowledged === 'true' || req.body.hipaaAcknowledged === true;
 
       const doc = await DoctorDetails.create({
+        // server-controlled
+        user: req.user._id,
+        email: user.emailId,
         clinicName: req.body.clinicName,
         practiceAddress: req.body.practiceAddress,
         website: req.body.website,
@@ -164,10 +163,7 @@ doctorRouter.post('/doctor/vetting', auth, isAuthorized('doctor'), upload.fields
           promoteEngagement: req.body.promoteEngagement,
           meaningfulCauses: req.body.meaningfulCauses
         },
-        campaignFit: parseJSON(req.body.campaignFit, []),
-        // server-controlled
-        user: req.user._id,
-        email: user.emailId
+        campaignFit: parseJSON(req.body.campaignFit, [])
       });
 
       return res.status(201).json({ message: 'registrationcompleted', data: doc });

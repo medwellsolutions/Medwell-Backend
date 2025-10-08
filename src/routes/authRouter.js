@@ -11,23 +11,19 @@ authRouter.post('/signup', async (req,res)=>{
     try{
         const { firstName, lastName, password, phone, location, age, emailId, gender, role, student } = req.body;
         const existingUser = await User.findOne({emailId});
-        // console.log(existingUser);
         if(existingUser){
             return res.status(409).send("User already exists");
         }
         const hashedPassword =await bcrypt.hash(password,10);
         const status = req.body.role === "participant"? "accepted":"hold"
         isValidated(req);
-        // const numAge = parseInt(age);
         const user =new User({
             firstName,
             lastName,
             password: hashedPassword,
             phone,
             location,
-            age:parseInt(age),
             emailId,
-            gender,
             role,
             status,
             student
@@ -50,12 +46,12 @@ authRouter.post('/login',async (req,res)=>{
 
     const user = await User.findOne({emailId});
     if(!user){
-        return res.status(401).send("Invalid credentials");
+        return res.status(401).send("account not found");
     }
 
     const truth = await bcrypt.compare(password, user.password);
     if(!truth){
-        return res.status(401).send("Invalid credentials");
+        return res.status(401).send("Password Invalid");
     }
     if(user.status !='accepted'){
         return res.status(401).send("Unauthorized");

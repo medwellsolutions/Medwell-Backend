@@ -41,11 +41,6 @@ const DOCTOR_PARTICIPATION_OPTIONS = [
   "Participate in gamified events or campus challenges",
 ];
 
-const AWARENESS_CAMPAIGNS = [
-  "Mental Health / Stress Awareness",
-  "Autism & Neurodiversity",
-];
-
 const FileIdRef = new mongoose.Schema({
   fileId: { type: mongoose.Schema.Types.ObjectId, required: true },
   filename: { type: String },
@@ -53,7 +48,6 @@ const FileIdRef = new mongoose.Schema({
   length: { type: Number },
   uploadDate: { type: Date },
 }, { _id: false });
-
 
 const DetailsSchema = new mongoose.Schema({
     user:{
@@ -98,7 +92,7 @@ const ParticipantSchema = new mongoose.Schema({
         // required:true,
         default:[]
     },
-    commitments:{
+    commitments:{ 
         type:[{type:String, enum:COMMITMENT_OPTIONS}],
         validate(arr){
             if(!Array.isArray(arr) || arr.length<5){
@@ -176,15 +170,12 @@ const DoctorSchema = new mongoose.Schema({
 
   /* SECTION 5: Cause & Campaign Fit */
   campaignFit: {
-    type: [{ type: String, enum: AWARENESS_CAMPAIGNS }],
+    type: [{ type: String}],
     default: []
   }
 }, { _id: false });
 
 const DoctorDetails = Details.discriminator('doctor', DoctorSchema);
-
-
-
 
 module.exports = {  Details,
                     ParticipantDetails,

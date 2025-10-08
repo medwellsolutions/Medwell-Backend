@@ -35,7 +35,7 @@ const isValidated = ({ body }) => {
     }
     // age: required, integer, min 18, max 150
     const numAge = parseInt(age, 10);
-    if (isNaN(numAge) || !Number.isInteger(numAge) || numAge < 18 || numAge > 150) {
+    if (!isNaN(numAge) && (!Number.isInteger(numAge) || numAge < 18 || numAge > 150) ) {
         throw new Error('Age must be an integer between 18 and 150');
     }
     // emailId: required, max 30, valid email
@@ -43,7 +43,7 @@ const isValidated = ({ body }) => {
         throw new Error('Email is invalid or too long');
     }
     // gender: required, must be one of
-    if (!gender || !['male', 'female', 'others'].includes(gender)) {
+    if (gender && !['male', 'female', 'others'].includes(gender)) {
         throw new Error('Gender is invalid');
     }
     // role: required, max 15

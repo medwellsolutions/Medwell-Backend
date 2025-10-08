@@ -48,6 +48,24 @@ participantRouter.post('/participant/vetting', auth, isAuthorized('participant')
     }
 })
 
+participantRouter.get('/details', auth, isAuthorized('participant'), async(req,res)=>{
+    try{
+        const _id = req.user._id;
+        const details = await Details.findOne({user:_id});
+        if(!details){
+            return res.status(403).json({
+                message: "Details are not available"
+            });
+        }
+        return res.status(200).json({
+            message: "Details fetched successfully",
+            data: details
+        });
+    }catch(err){
+        res.status(400).send(err.message);
+    }
+})
+
 
 
 
