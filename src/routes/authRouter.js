@@ -53,9 +53,9 @@ authRouter.post('/login',async (req,res)=>{
     if(!truth){
         return res.status(401).send("Password Invalid");
     }
-    if(user.status !='accepted'){
-        return res.status(401).send("Unauthorized");
-    }
+    // if(user.status !='accepted'){
+    //     return res.status(401).send("Unauthorized");
+    // }
     const token = jwt.sign({_id:user._id, role:user.role}, process.env.SECRET_KEY);
     res.cookie("token", token);
 
