@@ -5,6 +5,7 @@ const {Details} = require('../models/ParticipantVetting');
 const User = require('../models/userSchema');
 const {mongoose } = require('mongoose');
 const { GridFSBucket, ObjectId } = require('mongodb');
+const ALLOWED = ["hold", "accepted", "rejected"];
 
 function getBucket(bucketName = 'compliance') {
   const conn = mongoose.connection;
@@ -74,12 +75,7 @@ adminRouter.get('/admin/file/:fileId', auth, isAuthorized('admin'), async (req, 
   }
 });
 
-const ALLOWED = ["hold", "accepted", "rejected"];
 
-/**
- * PATCH /admin/application/:id/status
- * Body: { reviewStatus: "hold" | "accepted" | "rejected" }
- */
 adminRouter.patch("/admin/application/:id/status", auth, isAuthorized("admin"), async (req, res) => {
     const { id } = req.params;
     const { reviewStatus } = req.body;

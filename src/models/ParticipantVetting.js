@@ -179,5 +179,6 @@ const DoctorDetails = Details.discriminator('doctor', DoctorSchema);
 
 module.exports = {  Details,
                     ParticipantDetails,
-                    DoctorDetails
+                    DoctorDetails,
+                    FileIdRef
                     };
