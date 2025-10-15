@@ -23,7 +23,7 @@ const validator = require('validator');
 // },{
 //     _id:false
 // })
-const roles = ["participant", "supplier", "non-profit", "sponsor,", "doctor"];
+const roles = ["participant", "supplier", "non-profit", "sponsor", "doctor"];
 const UserSchema = new mongoose.Schema({
     firstName:{
         type:String,
@@ -113,7 +113,7 @@ const UserSchema = new mongoose.Schema({
         default:'participant',
         validate(value){
             if(!roles.includes(value)){
-                throw new Error("Invalid role");
+                throw new Error("Invalid role!");
             }
         }
     },

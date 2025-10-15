@@ -65,8 +65,7 @@ async function upMany(field, req, bucket) {
   return out.length ? out : undefined;
 }
 
-nonprofitRouter.post(
-  '/non-profit/vetting',
+nonprofitRouter.post('/non-profit/vetting',
   auth,
   isAuthorized('non-profit'),
   upload.fields([

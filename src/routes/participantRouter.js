@@ -3,6 +3,7 @@ const participantRouter = express.Router();
 const User = require('../models/userSchema.js');
 const {auth, isAuthorized} = require('../middleware/auth.js');
 const {ParticipantDetails, Details} = require('../models/ParticipantVetting.js');
+
 participantRouter.get('/feed/participant',auth, isAuthorized('participant'),async (req,res)=>{
     try{
        const user = await User.findById(req.user._id);

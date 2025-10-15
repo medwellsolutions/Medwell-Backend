@@ -61,10 +61,7 @@ async function up(field, req, bucket, kind) {
   };
 }
 
-sponsorRouter.post(
-  '/sponsor/vetting',
-  auth,
-  isAuthorized('sponsor'),
+sponsorRouter.post('/sponsor/vetting', auth, isAuthorized('sponsor'),
   upload.fields([
     { name: 'logo', maxCount: 1 },
     { name: 'styleGuide', maxCount: 1 },
