@@ -6,6 +6,14 @@ const User = require('../models/userSchema.js');
 const isValidated = require('../utils/validation.js');
 const validator = require('validator');
 const jwt = require('jsonwebtoken');
+const { Details } = require('../models/ParticipantVetting.js');
+
+const REGISTER_ROUTES = {
+  doctor: "/doctor/register",
+  sponsor: "/sponsor/register",
+  supplier: "/supplier/register",
+  "non-profit": "/nonprofit/register",
+};
 
 authRouter.post('/signup', async (req,res)=>{
     try{
@@ -38,6 +46,7 @@ authRouter.post('/signup', async (req,res)=>{
 
 authRouter.post('/login',async (req,res)=>{
     const {emailId,password} = req.body;
+    let nextRoute = '/feed';
     try{
 
     if(!emailId || !validator.isEmail(emailId) || !password){
@@ -58,19 +67,29 @@ authRouter.post('/login',async (req,res)=>{
     // }
     const token = jwt.sign({_id:user._id, role:user.role}, process.env.SECRET_KEY);
     res.cookie("token", token);
-
-    const userObj = user.toString();
-    delete userObj.password;
+    if(user.role!='admin' && user.role!='participant'){
+        const details = await Details.findOne({user:user._id});
+        if(!details){
+            nextRoute = REGISTER_ROUTES[user.role] || '/feed';
+        }
+    }
+    
+    const userObj = user.toObject();
+    if (userObj.password) delete userObj.password;
+    console.log(userObj);
     res.json({
             message:"Login Success",
-            data:userObj
+            data:{
+                ...userObj, //takes all the keyvalue pairs and copies them in the data obj
+                nextRoute
+            }
+            
         })
 
     }catch(err){
         res.send(err.message);
     }
     
-
 })
 
 module.exports = authRouter;

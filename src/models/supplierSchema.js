@@ -19,6 +19,8 @@ const SUPPLIER_CATEGORIES = [
   "Nutrition", "HealthTech", "Services", "Other"
 ];
 
+const businessStructure = ['LLC','C-Corp','S-Corp','Sole Proprietor','Partnership','Nonprofit','Other']
+
 const urlValidator = v => validator.isURL(v, { require_protocol: true });
 
 const einRegex = /^\d{2}-\d{7}$/; // 12-3456789 (US EIN)
@@ -35,6 +37,7 @@ const supplierSchema = new mongoose.Schema({
   },
   businessStructure: {
     type: String,
+    enum:businessStructure,
     required: true,
     trim: true,
     maxlength: 120,
