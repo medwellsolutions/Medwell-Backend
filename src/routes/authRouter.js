@@ -48,7 +48,6 @@ authRouter.post('/login',async (req,res)=>{
     const {emailId,password} = req.body;
     let nextRoute = '/feed';
     try{
-
     if(!emailId || !validator.isEmail(emailId) || !password){
         return res.status(400).send("Invalid credentials");
     }

@@ -13,7 +13,7 @@ const nonProfitRouter = require('./routes/nonprofitRouter.js');
 const app = express();
 
 app.use(cors({
-    origin:"*",
+    origin:"https://medwellsolutions.netlify.app/",
     credentials: true,
 }))
 
