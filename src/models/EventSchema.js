@@ -5,5 +5,5 @@ const EventSchema = new mongoose.Schema({
   endsAt: Date,
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
-const event =  mongoose.model("Event", EventSchema);
-module.exports = event;
+const Event =  mongoose.model("Event", EventSchema);
+module.exports = Event;
