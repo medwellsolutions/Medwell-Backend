@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const MediaSchema = new mongoose.Schema({
   kind: { type: String, enum: ["image", "video"], required: true },
@@ -35,4 +35,5 @@ ActivitySchema.index({ event: 1, createdAt: -1 });
 ActivitySchema.index({ user: 1, event: 1, createdAt: -1 });
 
 const Activity = mongoose.model("Activity", ActivitySchema);
+
 module.exports = Activity;

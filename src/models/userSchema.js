@@ -95,10 +95,6 @@ const UserSchema = new mongoose.Schema({
             }
         }
     },
-    student:{
-        type:Boolean,
-        required:true,
-    },
     college:{
         type:String,
         maxLength:70

@@ -2,7 +2,7 @@ const validator = require('validator');
 const isValidated = ({ body }) => {
     // Allowed fields
     const allowedFields = [
-        'firstName', 'lastName', 'password', 'phone', 'location', 'age', 'emailId', 'gender', 'role', 'student', 'college', 'clubs'
+        'firstName', 'lastName', 'password', 'phone', 'location', 'age', 'emailId', 'gender', 'role', 'college', 'clubs'
     ];
     // Check for unexpected fields
     Object.keys(body).forEach(key => {
@@ -11,7 +11,7 @@ const isValidated = ({ body }) => {
         }
     });
 
-    const { firstName, lastName, password, phone, location, age, emailId, gender, role, student, college, clubs } = body;
+    const { firstName, lastName, password, phone, location, age, emailId, gender, role, college, clubs } = body;
 
     // firstName: required, min 4, max 20
     if (!firstName || typeof firstName !== 'string' || firstName.length < 4 || firstName.length > 20) {
@@ -50,10 +50,6 @@ const isValidated = ({ body }) => {
     if (!role || typeof role !== 'string' || role.length > 15) {
         throw new Error('Role is invalid or too long');
     }
-    // // student: required, boolean
-    // if (typeof student !== 'boolean') {
-    //     throw new Error('Student must be true or false');
-    // }
     // college: optional, string, max 70
     if (college !== undefined && (typeof college !== 'string' || college.length > 70)) {
         throw new Error('College must be a string up to 70 characters');

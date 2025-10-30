@@ -6,6 +6,7 @@ const User = require('../models/userSchema');
 const {mongoose } = require('mongoose');
 const { GridFSBucket, ObjectId } = require('mongodb');
 const ALLOWED = ["hold", "accepted", "rejected"];
+const Event = require('../models/EventSchema.js');
 
 function getBucket(bucketName = 'compliance') {
   const conn = mongoose.connection;
@@ -123,6 +124,38 @@ adminRouter.patch("/admin/application/:id/status", auth, isAuthorized("admin"), 
     }
   }
 );
+
+adminRouter.post("/admin/createevent", auth, isAuthorized("admin"), async (req, res) => {
+  try {
+    const { name, month, caption, imageUrl, startsAt, endsAt, isActive } = req.body;
+
+    // basic validation
+    if (!name || !startsAt || !endsAt || !month || !caption || !imageUrl) {
+      return res.status(400).json({ message: "Please provide name, start date, and end date" });
+    }
+
+    // create new event
+    const event = new Event({
+      name,
+      imageUrl,
+      caption,
+      month,  
+      startsAt,
+      endsAt,
+      isActive: isActive ?? true, // default true if not provided
+    });
+
+    await event.save();
+
+    return res.status(201).json({
+      message: "New event added successfully",
+      event,
+    });
+  } catch (err) {
+    console.error("Error creating event:", err);
+    return res.status(500).json({ message: "Internal Server Error", error: err.message });
+  }
+});
 
 
 module.exports = adminRouter;

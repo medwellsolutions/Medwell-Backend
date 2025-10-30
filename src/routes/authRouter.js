@@ -17,7 +17,7 @@ const REGISTER_ROUTES = {
 
 authRouter.post('/signup', async (req,res)=>{
     try{
-        const { firstName, lastName, password, phone, location, age, emailId, gender, role, student } = req.body;
+        const { firstName, lastName, password, phone, location, age, emailId, gender, role } = req.body;
         const existingUser = await User.findOne({emailId});
         if(existingUser){
             return res.status(409).send("User already exists");
@@ -34,7 +34,6 @@ authRouter.post('/signup', async (req,res)=>{
             emailId,
             role,
             status,
-            student
         });
         await user.save();
         res.status(201).send("user Signed-up");
@@ -46,7 +45,7 @@ authRouter.post('/signup', async (req,res)=>{
 
 authRouter.post('/login',async (req,res)=>{
     const {emailId,password} = req.body;
-    let nextRoute = '/feed';
+    let nextRoute = '/home';
     try{
     if(!emailId || !validator.isEmail(emailId) || !password){
         return res.status(400).send("Invalid credentials");
@@ -69,13 +68,12 @@ authRouter.post('/login',async (req,res)=>{
     if(user.role!='admin' && user.role!='participant'){
         const details = await Details.findOne({user:user._id});
         if(!details){
-            nextRoute = REGISTER_ROUTES[user.role] || '/feed';
+            nextRoute = REGISTER_ROUTES[user.role] || '/home';
         }
     }
     
     const userObj = user.toObject();
     if (userObj.password) delete userObj.password;
-    console.log(userObj);
     res.json({
             message:"Login Success",
             data:{
@@ -89,6 +87,11 @@ authRouter.post('/login',async (req,res)=>{
         res.send(err.message);
     }
     
+})
+
+authRouter.post('/logout',(req,res)=>{
+    res.cookie( 'token', null, { expires: new Date( Date.now() ) } );
+    res.send("Logout Successful");
 })
 
 module.exports = authRouter;
