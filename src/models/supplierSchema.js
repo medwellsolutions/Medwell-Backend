@@ -137,7 +137,7 @@ const supplierSchema = new mongoose.Schema({
   },
   nonProfitInterest: {
     type: String,
-    required: true,
+    // required: true,
     trim: true,
     maxlength: 300,
     set: v => v?.trim()
