@@ -9,19 +9,6 @@ const Activity = require("../models/activitySchema.js");
 const Event= require("../models/EventSchema.js");
 const { default: mongoose } = require('mongoose');
 
-
-participantRouter.get('/feed/participant',auth, isAuthorized('participant'),async (req,res)=>{
-    try{
-       const user = await User.findById(req.user._id);
-        res.json({
-            message:"200",
-            // data:user,
-        })
-    }catch(err){
-        res.send(err.message);
-    }
-})
-
 participantRouter.post('/participant/vetting', auth, isAuthorized('participant'), async(req,res)=>{
     try{
     const _id = req.user._id;
@@ -81,6 +68,7 @@ const s3 = new S3Client({
   },
 });
 
+//sends an uploadurl to upload files in s3bucket 
 participantRouter.post("/uploads/sign", auth, isAuthorized('participant'), async (req, res) => {
   const { fileName, fileType } = req.body;
   const ts = Date.now();
@@ -97,6 +85,8 @@ participantRouter.post("/uploads/sign", auth, isAuthorized('participant'), async
   res.json({ uploadUrl, fileUrl });
 });
 
+
+//posts activiity into for an event in db, files in S3 bucket
 participantRouter.post("/activities", auth, isAuthorized("participant"), async (req, res) => {
   try {
     const userId = req.user._id; // from auth middleware
@@ -177,7 +167,8 @@ participantRouter.post("/activities", auth, isAuthorized("participant"), async (
   }
 });
 
-participantRouter.get("/events/:month", auth, isAuthorized('participant') ,async (req, res) => {
+//fetches events of a given month
+participantRouter.get("/events/:month", auth ,async (req, res) => {
   const month = req.params.month;
   const events = await Event.find({ month, isActive: true });
   res.json(events);
