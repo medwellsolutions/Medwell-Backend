@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 require('mongoose-type-url');
 
+
 const INTEREST_AREAS = [
     "Volunteering for health-related nonprofits", 
     "Participating in 5K walks, wellness events, or virtual challenges",

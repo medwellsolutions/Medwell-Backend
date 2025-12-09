@@ -125,37 +125,99 @@ adminRouter.patch("/admin/application/:id/status", auth, isAuthorized("admin"), 
   }
 );
 
-adminRouter.post("/admin/createevent", auth, isAuthorized("admin"), async (req, res) => {
-  try {
-    const { name, month, caption, imageUrl, startsAt, endsAt, isActive } = req.body;
+adminRouter.post(
+  "/admin/createevent",
+  auth,
+  isAuthorized("admin"),
+  async (req, res) => {
+    try {
+      const {
+        name,
+        caption,
+        month,
 
-    // basic validation
-    if (!name || !startsAt || !endsAt || !month || !caption || !imageUrl) {
-      return res.status(400).json({ message: "Please provide name, start date, and end date" });
+        imageUrl,
+        bannerImageUrl,
+
+        startsAt,
+        endsAt,
+
+        shortDescription,
+        longDescription,
+
+        actionSteps,
+        estimatedTime,
+        volunteerHours,
+        additionalInstructions,
+        certificateInfo,
+        requirements,
+        checkListItems,
+        FAQs,
+
+        isActive,
+      } = req.body;
+
+      // Basic validation
+      if (
+        !name ||
+        !caption ||
+        !month ||
+        // !imageUrl ||
+        // !bannerImageUrl ||
+        !startsAt ||
+        !endsAt ||
+        !shortDescription ||
+        !longDescription
+      ) {
+        return res.status(400).json({
+          message: "Missing required fields",
+        });
+      }
+
+      // Create event document
+      const event = new Event({
+        name,
+        caption,
+        month,
+
+        imageUrl,
+        bannerImageUrl,
+
+        startsAt: new Date(startsAt),
+        endsAt: new Date(endsAt),
+
+        shortDescription,
+        longDescription,
+
+        actionSteps: actionSteps || [],
+        estimatedTime: estimatedTime || {},
+        volunteerHours: volunteerHours || {},
+        additionalInstructions: additionalInstructions || [],
+        certificateInfo: certificateInfo || {},
+
+        requirements: requirements || [],
+        checkListItems: checkListItems || [],
+        FAQs: FAQs || [],
+
+        isActive: isActive ?? true,
+      });
+
+      await event.save();
+
+      return res.status(201).json({
+        message: "Event created successfully",
+        event,
+      });
+    } catch (err) {
+      console.error("Error creating event:", err);
+      return res.status(500).json({
+        message: "Internal Server Error",
+        error: err.message,
+      });
     }
-
-    // create new event
-    const event = new Event({
-      name,
-      imageUrl,
-      caption,
-      month,  
-      startsAt,
-      endsAt,
-      isActive: isActive ?? true, // default true if not provided
-    });
-
-    await event.save();
-
-    return res.status(201).json({
-      message: "New event added successfully",
-      event,
-    });
-  } catch (err) {
-    console.error("Error creating event:", err);
-    return res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
-});
+);
+
 
 
 module.exports = adminRouter;
