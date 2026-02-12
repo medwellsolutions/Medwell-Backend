@@ -150,6 +150,6 @@ UserSchema.methods.validatePassword = async function(password){
    return isPasswordCorrect;
 }
 
-const userModel = mongoose.model("user", UserSchema);
+const userModel = mongoose.model("User", UserSchema);
 
 module.exports = userModel;

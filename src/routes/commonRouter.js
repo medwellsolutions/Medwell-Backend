@@ -32,14 +32,14 @@ commonRouter.post("/uploads/sign", auth, async (req, res) => {
 });
 
 //fetches events of a given month
-commonRouter.get("/events/:month", auth ,async (req, res) => {
+commonRouter.get("/events/:month" ,async (req, res) => {
   const month = req.params.month;
   const events = await Event.find({ month, isActive: true });
   res.json(events);
 });
 
 //fetches the data of a given event/cause
-commonRouter.get("/event/:eventId", auth, async (req, res) => {
+commonRouter.get("/event/:eventId", async (req, res) => {
   try {
     const eventId = req.params.eventId;
     const event = await Event.findById(eventId);

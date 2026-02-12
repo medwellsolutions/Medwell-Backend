@@ -5,7 +5,6 @@ const {auth, isAuthorized} = require('../middleware/auth.js');
 const {ParticipantDetails, Details} = require('../models/ParticipantVetting.js');
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-const Activity = require("../models/activitySchema.js");
 const Event= require("../models/EventSchema.js");
 const EventSubmission = require("../models/EventSubmission");
 const { default: mongoose } = require('mongoose');
@@ -60,86 +59,6 @@ participantRouter.get('/details', auth, isAuthorized('participant'), async(req,r
         res.status(400).send(err.message);
     }
 })
-//posts activiity into for an event in db, files in S3 bucket
-participantRouter.post("/activities", auth, isAuthorized("participant"), async (req, res) => {
-  try {
-    const userId = req.user._id; // from auth middleware
-    const { event, type, text, media = [], visibility = "public", tags = [] } = req.body;
-
-    // Basic validation
-    if (!event) return res.status(400).json({ message: "event is required" });
-    if (!type || !["text", "image", "video"].includes(type)) {
-      return res.status(400).json({ message: "type must be one of: text, image, video" });
-    }
-    if (!text || !text.trim()) {
-      return res.status(400).json({ message: "text is required for all activities" });
-    }   
-    if ((type === "image" || type === "video") && media.length === 0) {
-      return res.status(400).json({ message: "media[] is required for image/video" });
-    }
-
-    // Optional: ensure event exists
-    const ev = await Event.findById(event).select("_id");
-    if (!ev) return res.status(404).json({ message: "event not found" });
-
-    // Normalize media items: infer kind from contentType if not provided
-    const normalizedMedia = media.map((m) => {
-      const kind =
-        m?.kind ||
-        (m?.contentType?.startsWith("image/")
-          ? "image"
-          : m?.contentType?.startsWith("video/")
-          ? "video"
-          : undefined);
-
-      if (!kind) {
-        throw new Error("media.kind or media.contentType (image/* or video/*) is required");
-      }
-
-      return {
-        kind,
-        url: m.url,                     // e.g., https://bucket.s3.amazonaws.com/uploads/169..._file.jpg
-        thumbUrl: m.thumbUrl,           // optional (you can add later)
-        contentType: m.contentType,     // e.g., image/jpeg
-        sizeBytes: m.sizeBytes,
-        width: m.width,
-        height: m.height,
-        durationSec: m.durationSec,
-        checksum: m.checksum,
-        transcodingStatus: m.transcodingStatus || "none",
-      };
-    });
-
-    // For type=text enforce no media; for media types, ensure kinds match
-    if (type === "text" && normalizedMedia.length > 0) {
-      return res.status(400).json({ message: "media[] must be empty for type=text" });
-    }
-    if (type === "image" && normalizedMedia.some((m) => m.kind !== "image")) {
-      return res.status(400).json({ message: "all media must be kind=image for type=image" });
-    }
-    if (type === "video" && normalizedMedia.some((m) => m.kind !== "video")) {
-      return res.status(400).json({ message: "all media must be kind=video for type=video" });
-    }
-
-    const activity = await Activity.create({
-      user: userId,
-      event,
-      type,
-      text,
-      media: normalizedMedia,
-      visibility,
-      status: "approved", // or "pending" if you want moderation
-      points: 0,
-      tags,
-      meta: req.body.meta || {},
-    });
-
-    return res.status(201).json({ message: "activity created", activity });
-  } catch (err) {
-    console.error("POST /activities error:", err);
-    return res.status(400).json({ message: err.message || "failed to create activity" });
-  }
-});
 
 /** Utility: whitelist body fields */
 const pick = (obj, keys) =>
@@ -199,53 +118,62 @@ participantRouter.patch('/profile/edit', auth, async (req, res, next) => {
 
 
 // route to post proof of submission of an actiivity by participant for admin/ reviewer to review
-participantRouter.post("/", auth, async (req, res) => {
+participantRouter.post("/activity/submission", auth, async (req, res) => {
   try {
-    const {
-      event,
-      stepNumber,
-      proofImageUrl,
-      socialLink,
-      experience,
-    } = req.body;
+    const { event, stepNumber, proofImageUrl, socialLink, experience } = req.body;
 
-    // Validation
     if (!event || !stepNumber || !experience) {
       return res.status(400).json({
         success: false,
         message: "event, stepNumber, and experience are required",
       });
     }
-    if(!proofImageUrl && !socialLink){
+
+    if (!proofImageUrl && !socialLink) {
       return res.status(400).json({
-        success:false,
-        message:"Either SocialLink or ProofImage are required"
-      })
+        success: false,
+        message: "Either SocialLink or ProofImage are required",
+      });
     }
 
+    // ✅ Convert proofImageUrl into media[] to match your schema
+    const media = proofImageUrl
+      ? [
+          {
+            kind: "image",
+            url: proofImageUrl,
+            // optional:
+            contentType: "image/jpeg",
+            transcodingStatus: "none",
+          },
+        ]
+      : [];
+
     const newSubmission = new EventSubmission({
-      user: req.user._id,  // taken from authMiddleware
+      user: req.user._id,
       event,
       stepNumber,
-      proofImageUrl: proofImageUrl || null,
+      media, // ✅ correct field
       socialLink: socialLink || null,
       experience,
+      status: "pending",
     });
 
     const saved = await newSubmission.save();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Submission created successfully",
       submission: saved,
     });
   } catch (err) {
     console.error("Error creating submission:", err);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Server error",
     });
   }
 });
+
 
 module.exports = participantRouter;
