@@ -136,13 +136,27 @@ participantRouter.post("/activity/submission", auth, async (req, res) => {
       });
     }
 
-    // ✅ Convert proofImageUrl into media[] to match your schema
+    // ✅ get event month for leaderboard bucketing
+    const ev = await Event.findById(event).select("_id month");
+    if (!ev) {
+      return res.status(404).json({ success: false, message: "Event not found" });
+    }
+
+    // If ev.month is already "YYYY-MM", use directly:
+    const eventMonthKey = ev.month; // e.g., "2026-02"
+    if (!eventMonthKey) {
+      return res.status(400).json({
+        success: false,
+        message: "Event is missing month (needed for leaderboard)",
+      });
+    }
+
+    // ✅ Convert proofImageUrl into media[]
     const media = proofImageUrl
       ? [
           {
             kind: "image",
             url: proofImageUrl,
-            // optional:
             contentType: "image/jpeg",
             transcodingStatus: "none",
           },
@@ -152,8 +166,9 @@ participantRouter.post("/activity/submission", auth, async (req, res) => {
     const newSubmission = new EventSubmission({
       user: req.user._id,
       event,
+      eventMonthKey, // ✅ NEW
       stepNumber,
-      media, // ✅ correct field
+      media,
       socialLink: socialLink || null,
       experience,
       status: "pending",
@@ -174,6 +189,7 @@ participantRouter.post("/activity/submission", auth, async (req, res) => {
     });
   }
 });
+
 
 
 module.exports = participantRouter;

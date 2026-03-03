@@ -64,6 +64,9 @@ const EventSubmissionSchema = new Schema(
     // optional: for filtering/search later
     tags: { type: [String], default: [], index: true },
     meta: { type: Object, default: {} },
+
+   eventMonthKey: { type: String, required: true, index: true }, // "YYYY-MM"
+
   },
   { timestamps: true }
 );

@@ -3,7 +3,7 @@
 const EventSchema = new mongoose.Schema({
   name: { type: String, required: true, index: true },   // Event title
   caption: { type: String, required: true },             // Short tag line
-  month: { type: String, required: true },               // Month category (ex: "November Events")
+  month: { type: String, required: true, index: true }, // "YYYY-MM" like "2026-01"
 
   imageUrl: { type: String, required: false },            // Thumbnail
   bannerImageUrl: { type: String, required: false },      // Banner for event page

@@ -127,15 +127,17 @@ const UserSchema = new mongoose.Schema({
     },
     passwordChangedAt:{
         type:Date //useful to invalidate old JWTs
-    }
-    // isEmailVerified:{
-    //     type:Boolean,
-    //     default:false
-    // },
-    // emailVerification:{
-    //     type:EmailVerifySchema,
-    //     default:{}
-    // }
+    },
+    isEmailVerified: {
+        type: Boolean,
+        default: false,
+    },
+    emailVerificationToken: {
+        type: String,
+    },
+    emailVerificationExpires: {
+        type: Date,
+    },
 
 },
 {

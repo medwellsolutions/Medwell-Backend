@@ -4,6 +4,8 @@ const {auth} = require('../middleware/auth.js');
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const Event = require('../models/EventSchema.js')
+const UserMonthlyPoints = require("../models/UserMonthlyPoints");
+const { monthKeyFromDate } = require("../utils/dateUtil");
 
 
 const s3 = new S3Client({
@@ -50,6 +52,42 @@ commonRouter.get("/event/:eventId", async (req, res) => {
   } catch (err) {
     console.error("Error fetching event:", err);
     return res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+commonRouter.get("/leaderboard", auth, async (req, res) => {
+  try {
+    // optional: allow frontend to ask a specific month: /leaderboard?monthKey=2026-02
+    const monthKey =
+      (req.query.monthKey && String(req.query.monthKey)) || monthKeyFromDate(new Date());
+
+    const limit = Math.min(Number(req.query.limit || 100), 500);
+
+    const rows = await UserMonthlyPoints.find({ monthKey })
+      .populate("user", "_id firstName lastName")
+      .sort({ points: -1, lastApprovedAt: -1 }) // tie-breaker
+      .limit(limit)
+      .lean();
+
+    // Convert to frontend-friendly shape
+    const data = rows.map((r, idx) => ({
+      rank: idx + 1, // you can also compute in frontend, but this is handy
+      userId: r.user?._id,
+      firstName: r.user?.firstName || "",
+      lastName: r.user?.lastName || "",
+      points: Number(r.points || 0),
+    }));
+    return res.status(200).json({
+      success: true,
+      monthKey,
+      data,
+    });
+  } catch (err) {
+    console.error("GET /leaderboard error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 });
 

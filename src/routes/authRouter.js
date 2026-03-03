@@ -7,6 +7,8 @@ const isValidated = require('../utils/validation.js');
 const validator = require('validator');
 const jwt = require('jsonwebtoken');
 const { Details } = require('../models/ParticipantVetting.js');
+const crypto = require("crypto");
+const { sendEmail } = require("../services/emailService");
 
 const REGISTER_ROUTES = {
   doctor: "/doctor/register",
@@ -15,33 +17,127 @@ const REGISTER_ROUTES = {
   "non-profit": "/nonprofit/register",
 };
 
-authRouter.post('/signup', async (req,res)=>{
-    try{
-        const { firstName, lastName, password, phone, location, age, emailId, gender, role } = req.body;
-        const existingUser = await User.findOne({emailId});
-        if(existingUser){
-            return res.status(409).send("User already exists");
-        }
-        const hashedPassword =await bcrypt.hash(password,10);
-        const status = req.body.role === "participant"? "accepted":"hold"
-        isValidated(req);
-        const user =new User({
-            firstName,
-            lastName,
-            password: hashedPassword,
-            phone,
-            location,
-            emailId,
-            role,
-            status,
-        });
-        await user.save();
-        res.status(201).send("user Signed-up");
-    }catch(err){
-        res.status(400).send(err.message);
-    }
+// authRouter.post('/signup', async (req,res)=>{
+//     try{
+//         const { firstName, lastName, password, phone, location, age, emailId, gender, role } = req.body;
+//         const existingUser = await User.findOne({emailId});
+//         if(existingUser){
+//             return res.status(409).send("User already exists");
+//         }
+//         const hashedPassword =await bcrypt.hash(password,10);
+//         const status = req.body.role === "participant"? "accepted":"hold"
+//         isValidated(req);
+//         const user =new User({
+//             firstName,
+//             lastName,
+//             password: hashedPassword,
+//             phone,
+//             location,
+//             emailId,
+//             role,
+//             status,
+//         });
+//         await user.save();
+//         res.status(201).send("user Signed-up");
+//     }catch(err){
+//         res.status(400).send(err.message);
+//     }
     
-})
+// })
+
+authRouter.post("/signup", async (req, res) => {
+  try {
+    const { firstName, lastName, password, phone, location, age, emailId, gender, role } = req.body;
+
+    const existingUser = await User.findOne({ emailId });
+    if (existingUser) {
+      return res.status(409).send("User already exists");
+    }
+
+    isValidated(req);
+
+    const status = role === "participant" ? "accepted" : "hold";
+
+    // ✅ hash password here (since you don't have presave)
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // ✅ generate verification token ONCE
+    const token = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = new User({
+      firstName,
+      lastName,
+      password: hashedPassword,
+      phone,
+      location,
+      age,
+      gender,
+      emailId,
+      role,
+      status,
+
+      isEmailVerified: false,
+      emailVerificationToken: hashedToken,
+      emailVerificationExpires: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+    });
+
+    await user.save();
+
+    const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+
+    await sendEmail({
+      to: user.emailId,
+      subject: "Verify your email - Medwell",
+      html: `
+        <div style="font-family: Arial, sans-serif">
+          <h2>Verify your email</h2>
+          <p>Click below to verify:</p>
+          <a href="${verifyUrl}" style="background:#1e90ff;padding:10px 18px;color:#fff;border-radius:6px;text-decoration:none;">
+            Verify Email
+          </a>
+          <p>This link expires in 1 hour.</p>
+        </div>
+      `,
+      text: `Verify your email: ${verifyUrl}`,
+    });
+
+    return res.status(201).json({
+      message: "User signed up. Please verify your email.",
+    });
+  } catch (err) {
+    return res.status(400).send(err.message);
+  }
+});
+
+
+authRouter.get("/verify-email", async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ message: "Token missing" });
+
+    const hashed = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      emailVerificationToken: hashed,
+      emailVerificationExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+
+    await user.save();
+
+    return res.json({ message: "Email verified successfully" });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
 
 authRouter.post('/login',async (req,res)=>{
     const {emailId,password} = req.body;
@@ -55,7 +151,9 @@ authRouter.post('/login',async (req,res)=>{
     if(!user){
         return res.status(401).send("account not found");
     }
-
+    if(!user.isEmailVerified){
+        return res.status(401).send("Email is not verified or account does not exist");
+    }
     const truth = await bcrypt.compare(password, user.password);
     if(!truth){
         return res.status(401).send("Password Invalid");

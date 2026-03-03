@@ -8,6 +8,8 @@ const { GridFSBucket, ObjectId } = require('mongodb');
 const ALLOWED = ["hold", "accepted", "rejected"];
 const Event = require('../models/EventSchema.js');
 const EventSubmission = require('../models/EventSubmission.js');
+const UserMonthlyPoints = require("../models/UserMonthlyPoints");
+const { monthKeyFromDate } = require("../utils/dateUtil.js");
 
 function getBucket(bucketName = 'compliance') {
   const conn = mongoose.connection;
@@ -150,15 +152,14 @@ adminRouter.get('/admin/file/:fileId', auth, isAuthorized('admin'), async (req, 
   }
 });
 
-
 adminRouter.patch(
   "/admin/application/:id/status",
   auth,
   isAuthorized("admin"),
   async (req, res) => {
-    const { id } = req.params; // IMPORTANT: this should be EventSubmission _id
+    const { id } = req.params;
     const {
-      reviewStatus,           // "hold" | "accepted" | "rejected"
+      reviewStatus,
       hoursAwarded = 0,
       pointsAwarded = 0,
       reviewComment = "",
@@ -173,54 +174,103 @@ adminRouter.patch(
 
       const ALLOWED = ["hold", "accepted", "rejected"];
       if (!ALLOWED.includes(reviewStatus)) {
-        return res
-          .status(400)
-          .json({ error: `Invalid status. Allowed: ${ALLOWED.join(", ")}` });
+        return res.status(400).json({
+          error: `Invalid status. Allowed: ${ALLOWED.join(", ")}`,
+        });
       }
 
-      // Map UI status -> EventSubmission status
       const mappedStatus =
         reviewStatus === "accepted"
           ? "approved"
           : reviewStatus === "rejected"
           ? "rejected"
-          : "pending"; // hold
+          : "pending";
 
-      // Rejection requires comment
       if (mappedStatus === "rejected" && !String(reviewComment).trim()) {
         return res.status(400).json({ error: "Rejection comment is required" });
       }
 
-      // Find submission
       const submission = await EventSubmission.findById(id);
       if (!submission) {
         return res.status(404).json({ error: "Submission not found" });
       }
 
-      // Update submission
+      // -------- OLD VALUES --------
+      const oldStatus = submission.status;
+      const oldPoints = Number(submission.pointsAwarded || 0);
+      const oldHours = Number(submission.hoursAwarded || 0);
+
+      // ✅ monthKey should be EVENT month, derived from Event.startsAt if needed
+      const yyyyMm = /^\d{4}-\d{2}$/;
+      let monthKey = submission.eventMonthKey;
+
+      if (!monthKey || !yyyyMm.test(String(monthKey))) {
+        // fallback: compute from event.startsAt
+        const ev = await Event.findById(submission.event).select("_id startsAt");
+        if (!ev?.startsAt) {
+          return res.status(400).json({
+            error: "Cannot compute monthKey: event.startsAt missing/invalid",
+          });
+        }
+        const d = new Date(ev.startsAt);
+        if (isNaN(d.getTime())) {
+          return res.status(400).json({
+            error: "Cannot compute monthKey: event.startsAt invalid",
+          });
+        }
+        monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+        // ✅ also persist the corrected monthKey on the submission so future calls are fast
+        submission.eventMonthKey = monthKey;
+      }
+
+      // -------- NEW VALUES --------
+      const newPoints = mappedStatus === "approved" ? Number(pointsAwarded || 0) : 0;
+      const newHours = mappedStatus === "approved" ? Number(hoursAwarded || 0) : 0;
+
+      // -------- UPDATE SUBMISSION --------
       submission.status = mappedStatus;
       submission.reviewedBy = adminId;
       submission.reviewedAt = new Date();
       submission.reviewComment =
         mappedStatus === "rejected" ? String(reviewComment).trim() : "";
 
-      submission.hoursAwarded =
-        mappedStatus === "approved" ? Number(hoursAwarded || 0) : 0;
-
-      submission.pointsAwarded =
-        mappedStatus === "approved" ? Number(pointsAwarded || 0) : 0;
+      submission.hoursAwarded = newHours;
+      submission.pointsAwarded = newPoints;
 
       await submission.save();
 
-      // OPTIONAL: update user.status too (only if your app uses this field for access)
-      // NOTE: Your earlier users didn't have status="hold" so keep this only if you add that field.
-      // if (submission.user) {
-      //   await User.findByIdAndUpdate(submission.user, {
-      //     status: reviewStatus, // store "hold/accepted/rejected" on User
-      //     updatedAt: new Date(),
-      //     updatedBy: adminId,
-      //   });
-      // }
+      // -------- LEADERBOARD DELTA (EVENT MONTH BASED) --------
+      async function incMonthly(userId, monthKey, dp, dh, dc) {
+        if (!dp && !dh && !dc) return;
+
+        await UserMonthlyPoints.updateOne(
+          { user: userId, monthKey },
+          {
+            $inc: {
+              points: dp,
+              hours: dh,
+              approvedCount: dc,
+            },
+          },
+          { upsert: true }
+        );
+      }
+
+      // Cases
+      if (oldStatus !== "approved" && mappedStatus === "approved") {
+        await incMonthly(submission.user, monthKey, newPoints, newHours, 1);
+      } else if (oldStatus === "approved" && mappedStatus !== "approved") {
+        await incMonthly(submission.user, monthKey, -oldPoints, -oldHours, -1);
+      } else if (oldStatus === "approved" && mappedStatus === "approved") {
+        await incMonthly(
+          submission.user,
+          monthKey,
+          newPoints - oldPoints,
+          newHours - oldHours,
+          0
+        );
+      }
 
       return res.json({
         message: "Submission updated successfully",
@@ -229,9 +279,7 @@ adminRouter.patch(
           status: mappedStatus,
           hoursAwarded: submission.hoursAwarded,
           pointsAwarded: submission.pointsAwarded,
-          reviewComment: submission.reviewComment,
-          reviewedBy: submission.reviewedBy,
-          reviewedAt: submission.reviewedAt,
+          monthKey, // helpful for debugging
         },
       });
     } catch (err) {
@@ -240,8 +288,6 @@ adminRouter.patch(
     }
   }
 );
-
-
 adminRouter.post( "/admin/createevent",
   auth,
   isAuthorized("admin"),
