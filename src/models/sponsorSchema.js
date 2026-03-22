@@ -1,7 +1,7 @@
 // models/sponsorSchema.js
 const mongoose = require('mongoose');
 const validator = require('validator');
-const { FileIdRef, Details } = require('./ParticipantVetting');
+const { Details } = require('./ParticipantVetting');
 
 // ----- ENUMS (from your form) -----
 const ENTITY_TYPES = ['Corporation', 'Small Business', 'Foundation', 'B Corp', 'Other'];
@@ -75,11 +75,11 @@ const sponsorSchema = new mongoose.Schema({
   // SECTION 2: Brand Guidelines & Legal (files)
   brandLegal: {
     _id: false,
-    logo:                { type: FileIdRef, default: undefined }, // image
-    styleGuide:          { type: FileIdRef, default: undefined }, // PDF
-    marketingLanguage:   { type: FileIdRef, default: undefined }, // PDF
-    w9OrReceipt:         { type: FileIdRef, default: undefined }, // PDF
-    liaisonDoc:          { type: FileIdRef, default: undefined }, // PDF (optional)
+    logo:                { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    styleGuide:          { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    marketingLanguage:   { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    w9OrReceipt:         { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    liaisonDoc:          { type: { _id: false, url: String }, default: undefined }, // S3 URL (optional)
   },
 
   // SECTION 3: Sponsorship Goals (multi-select)

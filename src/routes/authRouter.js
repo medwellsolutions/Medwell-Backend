@@ -51,7 +51,16 @@ authRouter.post("/signup", async (req, res) => {
 
     const existingUser = await User.findOne({ emailId });
     if (existingUser) {
-      return res.status(409).send("User already exists");
+      if (!existingUser.isEmailVerified) {
+        return res.status(409).json({
+          code: "UNVERIFIED",
+          message: "An account with this email exists but hasn't been verified. Please verify your email or request a new link.",
+        });
+      }
+      return res.status(409).json({
+        code: "EXISTS",
+        message: "An account with this email already exists. Please log in.",
+      });
     }
 
     isValidated(req);
@@ -134,6 +143,53 @@ authRouter.get("/verify-email", async (req, res) => {
     await user.save();
 
     return res.json({ message: "Email verified successfully" });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+authRouter.post("/resend-verification", async (req, res) => {
+  try {
+    const { emailId } = req.body;
+    if (!emailId || !validator.isEmail(emailId)) {
+      return res.status(400).json({ message: "Valid email is required." });
+    }
+
+    const user = await User.findOne({ emailId });
+    if (!user) {
+      // Don't reveal whether email exists
+      return res.status(200).json({ message: "If that account exists and is unverified, a new link has been sent." });
+    }
+    if (user.isEmailVerified) {
+      return res.status(400).json({ message: "This email is already verified. Please log in." });
+    }
+
+    // Generate a fresh token
+    const token = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    user.emailVerificationToken = hashedToken;
+    user.emailVerificationExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await user.save();
+
+    const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+    await sendEmail({
+      to: user.emailId,
+      subject: "Verify your email - Medwell",
+      html: `
+        <div style="font-family: Arial, sans-serif">
+          <h2>Verify your email</h2>
+          <p>Click below to verify:</p>
+          <a href="${verifyUrl}" style="background:#1e90ff;padding:10px 18px;color:#fff;border-radius:6px;text-decoration:none;">
+            Verify Email
+          </a>
+          <p>This link expires in 1 hour.</p>
+        </div>
+      `,
+      text: `Verify your email: ${verifyUrl}`,
+    });
+
+    return res.status(200).json({ message: "Verification email sent. Please check your inbox." });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }

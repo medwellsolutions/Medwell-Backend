@@ -117,7 +117,22 @@ participantRouter.patch('/profile/edit', auth, async (req, res, next) => {
 });
 
 
-// route to post proof of submission of an actiivity by participant for admin/ reviewer to review
+// GET /activity/submission/:eventId/:stepNumber — fetch user's own submission for a step
+participantRouter.get("/activity/submission/:eventId/:stepNumber", auth, async (req, res) => {
+  try {
+    const submission = await EventSubmission.findOne({
+      user: req.user._id,
+      event: req.params.eventId,
+      stepNumber: Number(req.params.stepNumber),
+    }).lean();
+    return res.json({ submission: submission || null });
+  } catch (err) {
+    console.error("Error fetching submission:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// POST /activity/submission — create or resubmit (only allowed if previous was rejected)
 participantRouter.post("/activity/submission", auth, async (req, res) => {
   try {
     const { event, stepNumber, proofImageUrl, socialLink, experience } = req.body;
@@ -136,14 +151,58 @@ participantRouter.post("/activity/submission", auth, async (req, res) => {
       });
     }
 
-    // ✅ get event month for leaderboard bucketing
+    // Check for an existing submission for this user+event+step
+    const existing = await EventSubmission.findOne({
+      user: req.user._id,
+      event,
+      stepNumber: Number(stepNumber),
+    });
+
+    if (existing) {
+      if (existing.status === "pending") {
+        return res.status(409).json({
+          success: false,
+          code: "PENDING",
+          message: "Your submission is currently under review. Please wait for it to be reviewed.",
+        });
+      }
+      if (existing.status === "approved") {
+        return res.status(409).json({
+          success: false,
+          code: "APPROVED",
+          message: "Your submission has already been approved.",
+        });
+      }
+      // status === "rejected" — allow resubmission by updating the existing doc
+      const media = proofImageUrl
+        ? [{ kind: "image", url: proofImageUrl, contentType: "image/jpeg", transcodingStatus: "none" }]
+        : [];
+
+      existing.media = media;
+      existing.socialLink = socialLink || null;
+      existing.experience = experience;
+      existing.status = "pending";
+      existing.reviewedBy = undefined;
+      existing.reviewComment = "";
+      existing.reviewedAt = undefined;
+      existing.hoursAwarded = 0;
+      existing.pointsAwarded = 0;
+      const updated = await existing.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Resubmission successful. Your proof has been sent for review.",
+        submission: updated,
+      });
+    }
+
+    // No existing submission — create fresh
     const ev = await Event.findById(event).select("_id month");
     if (!ev) {
       return res.status(404).json({ success: false, message: "Event not found" });
     }
 
-    // If ev.month is already "YYYY-MM", use directly:
-    const eventMonthKey = ev.month; // e.g., "2026-02"
+    const eventMonthKey = ev.month;
     if (!eventMonthKey) {
       return res.status(400).json({
         success: false,
@@ -151,22 +210,14 @@ participantRouter.post("/activity/submission", auth, async (req, res) => {
       });
     }
 
-    // ✅ Convert proofImageUrl into media[]
     const media = proofImageUrl
-      ? [
-          {
-            kind: "image",
-            url: proofImageUrl,
-            contentType: "image/jpeg",
-            transcodingStatus: "none",
-          },
-        ]
+      ? [{ kind: "image", url: proofImageUrl, contentType: "image/jpeg", transcodingStatus: "none" }]
       : [];
 
     const newSubmission = new EventSubmission({
       user: req.user._id,
       event,
-      eventMonthKey, // ✅ NEW
+      eventMonthKey,
       stepNumber,
       media,
       socialLink: socialLink || null,

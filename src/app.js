@@ -32,36 +32,10 @@ app.use('/', nonProfitRouter);
 app.use('/', profileRouter);
 
 
-const { sendEmail } = require("./services/emailService.js");
-
-app.post("/test-email", async (req, res) => {
-  try {
-    const { to } = req.body;
-
-    const url = "https://example.com";
-    await sendEmail({
-      to,
-      subject: "SES test - Medwell",
-      html: `<h2>SES works ✅</h2><p>Link: <a href="${url}">${url}</a></p>`,
-      text: `SES works. Link: ${url}`,
-    });
-
-    res.json({ ok: true, message: "Email sent" });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-
 
 app.use('/', (req,res)=>{
     res.send("came through middleware");
 })
-
-
-
-
-
 
 connectDB().then(()=>{
     console.log("App is connect to DB");

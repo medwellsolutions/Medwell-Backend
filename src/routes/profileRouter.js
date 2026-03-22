@@ -6,6 +6,18 @@ const validator = require('validator');
 const User = require('../models/userSchema');
 
 
+// Get current logged-in user
+profileRouter.get('/profile', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const userObj = user.toObject();
+    res.json({ message: 'success', data: { ...userObj, nextRoute: '/home' } });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 //Change Password
 profileRouter.patch('/profile/editPassword', auth, async (req,res)=>{
 

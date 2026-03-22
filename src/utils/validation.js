@@ -25,12 +25,12 @@ const isValidated = ({ body }) => {
     if (!password || typeof password !== 'string' || !validator.isStrongPassword(password)) {
         throw new Error('Password is invalid or not strong enough');
     }
-    // phone: required, min 10, max 15
-    if (!phone || typeof phone !== 'string' || phone.length < 10 || phone.length > 15 || !validator.isMobilePhone(phone, 'any')) {
+    // phone: optional, but if provided must be valid (10–15 digits)
+    if (phone && (typeof phone !== 'string' || phone.length < 10 || phone.length > 15 || !validator.isMobilePhone(phone, 'any'))) {
         throw new Error('Phone number is invalid');
     }
-    // location: required, min 6, max 100
-    if (!location || typeof location !== 'string' || location.length < 6 || location.length > 100) {
+    // location: optional, but if provided must be 6–100 characters
+    if (location && (typeof location !== 'string' || location.length < 6 || location.length > 100)) {
         throw new Error('Location must be 6-100 characters');
     }
     // age: required, integer, min 18, max 150

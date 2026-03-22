@@ -2,6 +2,7 @@ const express = require('express');
 const { auth, isAuthorized } = require('../middleware/auth');
 const adminRouter = express.Router();
 const {Details} = require('../models/ParticipantVetting');
+const { sendEmail } = require('../services/emailService');
 const User = require('../models/userSchema');
 const {mongoose } = require('mongoose');
 const { GridFSBucket, ObjectId } = require('mongodb');
@@ -288,6 +289,151 @@ adminRouter.patch(
     }
   }
 );
+
+// GET pending vetting count (lightweight — used for navbar badge)
+adminRouter.get("/admin/vettings/count", auth, isAuthorized("admin"), async (req, res) => {
+  try {
+    const [pending, total] = await Promise.all([
+      Details.countDocuments({ reviewStatus: "hold" }),
+      Details.countDocuments({}),
+    ]);
+    return res.status(200).json({ status: "success", data: { pending, total } });
+  } catch (err) {
+    return res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
+// GET all vetting submissions from the details collection (all roles)
+adminRouter.get("/admin/vettings", auth, isAuthorized("admin"), async (req, res) => {
+  try {
+    const docs = await Details.find({})
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Shape each doc to only send what the list UI needs
+    const data = docs.map((d) => ({
+      _id: d._id,
+      role: d.role,
+      email: d.email,
+      reviewStatus: d.reviewStatus || "hold",
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt,
+
+      // name fields — different per role, frontend picks whichever exists
+      businessName:  d.businessName  || null,   // supplier, sponsor
+      legalName:     d.legalName     || null,    // non-profit
+      clinicName:    d.clinicName    || null,    // doctor
+
+      // extra subtitle fields
+      businessStructure: d.businessStructure || null,  // supplier
+      entityType:        d.entityType        || null,  // sponsor
+      stateIncorp:       d.stateIncorp       || null,  // non-profit
+      practiceAddress:   d.practiceAddress   || null,  // doctor
+    }));
+
+    return res.status(200).json({ status: "success", data });
+  } catch (err) {
+    console.error("GET /admin/vettings error:", err);
+    return res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
+// GET single vetting application by _id
+adminRouter.get("/admin/vetting/:id", auth, isAuthorized("admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ status: "error", message: "Invalid id" });
+    }
+    const doc = await Details.findById(id).lean();
+    if (!doc) {
+      return res.status(404).json({ status: "error", message: "Not found" });
+    }
+    return res.status(200).json({ status: "success", data: doc });
+  } catch (err) {
+    console.error("GET /admin/vetting/:id error:", err);
+    return res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
+// PATCH vetting status
+adminRouter.patch("/admin/vetting/:id/status", auth, isAuthorized("admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reviewStatus, reviewerNotes = "" } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ status: "error", message: "Invalid id" });
+    }
+    if (!ALLOWED.includes(reviewStatus)) {
+      return res.status(400).json({ status: "error", message: `Status must be one of: ${ALLOWED.join(", ")}` });
+    }
+    if (reviewStatus === "rejected" && !String(reviewerNotes).trim()) {
+      return res.status(400).json({ status: "error", message: "Reviewer notes are required when rejecting" });
+    }
+
+    const doc = await Details.findById(id);
+    if (!doc) {
+      return res.status(404).json({ status: "error", message: "Not found" });
+    }
+
+    doc.reviewStatus = reviewStatus;
+    doc.reviewedBy = req.user?._id;
+    doc.reviewedAt = new Date();
+    doc.reviewerNotes = reviewStatus === "rejected" ? String(reviewerNotes).trim() : String(reviewerNotes || "");
+    await doc.save();
+
+    // Send status notification email
+    if (doc.email) {
+      const roleLabel = (doc.role || "partner").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      const subjects = {
+        accepted: `Your ${roleLabel} application has been approved – Medwell`,
+        rejected: `Update on your ${roleLabel} application – Medwell`,
+        hold:     `Your ${roleLabel} application is under review – Medwell`,
+      };
+      const bodies = {
+        accepted: `
+          <div style="font-family:Arial,sans-serif;max-width:560px">
+            <h2 style="color:#1a7a4a">Application Approved ✓</h2>
+            <p>Great news! Your <strong>${roleLabel}</strong> application with Medwell has been <strong>approved</strong>.</p>
+            <p>You can now log in and complete your profile to get started.</p>
+            <p style="margin-top:24px;color:#888;font-size:12px">If you have questions, reply to this email.</p>
+          </div>`,
+        rejected: `
+          <div style="font-family:Arial,sans-serif;max-width:560px">
+            <h2 style="color:#c0392b">Application Not Approved</h2>
+            <p>Thank you for applying as a <strong>${roleLabel}</strong> with Medwell.</p>
+            <p>After review, we were unable to approve your application at this time.</p>
+            ${doc.reviewerNotes ? `<div style="margin:16px 0;padding:12px 16px;background:#fff3f3;border-left:4px solid #e13429;border-radius:4px"><strong>Reviewer notes:</strong><br/>${doc.reviewerNotes}</div>` : ""}
+            <p>If you believe this is an error or would like to discuss further, please reach out to us.</p>
+            <p style="margin-top:24px;color:#888;font-size:12px">Thank you for your interest in Medwell.</p>
+          </div>`,
+        hold: `
+          <div style="font-family:Arial,sans-serif;max-width:560px">
+            <h2 style="color:#b7791f">Application Under Review</h2>
+            <p>Your <strong>${roleLabel}</strong> application with Medwell is currently <strong>under review</strong>.</p>
+            <p>We will notify you once a decision has been made. This typically takes a few business days.</p>
+            <p style="margin-top:24px;color:#888;font-size:12px">Thank you for your patience.</p>
+          </div>`,
+      };
+      try {
+        await sendEmail({
+          to: doc.email,
+          subject: subjects[reviewStatus] || `Application update – Medwell`,
+          html: bodies[reviewStatus] || bodies.hold,
+        });
+      } catch (emailErr) {
+        console.error("Status email failed (non-fatal):", emailErr.message);
+      }
+    }
+
+    return res.status(200).json({ status: "success", data: { reviewStatus, reviewerNotes: doc.reviewerNotes } });
+  } catch (err) {
+    console.error("PATCH /admin/vetting/:id/status error:", err);
+    return res.status(500).json({ status: "error", message: err.message });
+  }
+});
+
 adminRouter.post( "/admin/createevent",
   auth,
   isAuthorized("admin"),
@@ -379,5 +525,44 @@ adminRouter.post( "/admin/createevent",
     }
   }
 );
+
+// PATCH /admin/event/:eventId — update any fields of an existing event
+adminRouter.patch("/admin/event/:eventId", auth, isAuthorized("admin"), async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    const ALLOWED = [
+      "name", "caption", "month", "imageUrl", "bannerImageUrl",
+      "startsAt", "endsAt", "shortDescription", "longDescription",
+      "actionSteps", "estimatedTime", "volunteerHours",
+      "additionalInstructions", "certificateInfo",
+      "requirements", "checkListItems", "FAQs", "isActive",
+    ];
+
+    const update = {};
+    for (const key of ALLOWED) {
+      if (req.body[key] !== undefined) update[key] = req.body[key];
+    }
+
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ message: "No valid fields to update." });
+    }
+
+    const updated = await Event.findByIdAndUpdate(
+      eventId,
+      { $set: update },
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    return res.json({ message: "Event updated successfully.", event: updated });
+  } catch (err) {
+    console.error("PATCH /admin/event/:eventId error:", err);
+    return res.status(500).json({ message: err.message });
+  }
+});
 
 module.exports = adminRouter;

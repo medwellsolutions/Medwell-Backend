@@ -145,12 +145,12 @@ const DoctorSchema = new mongoose.Schema({
 
   /* SECTION 2: Compliance & Documentation */
   compliance: {
-    businessLicense: { type: FileIdRef, default: undefined },   // PDF
-    w9:             { type: FileIdRef, default: undefined },     // PDF
+    businessLicense: { type: { _id: false, url: String }, default: undefined },   // S3 URL
+    w9:             { type: { _id: false, url: String }, default: undefined },     // S3 URL
     hipaaAcknowledged: { type: Boolean, default: false, required: true },
     hipaaAcknowledgedAt: { type: Date },
-    logo:    { type: FileIdRef, default: undefined },            // image
-    headshot:{ type: FileIdRef, default: undefined }             // image
+    logo:    { type: { _id: false, url: String }, default: undefined },            // S3 URL
+    headshot:{ type: { _id: false, url: String }, default: undefined }             // S3 URL
   },
 
   /* SECTION 3: Participation Options — at least 5 */

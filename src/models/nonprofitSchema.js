@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
-const { FileIdRef, Details } = require('./ParticipantVetting');
+const { Details } = require('./ParticipantVetting');
 
 // ---- enums from your form ----
 const PARTICIPATION_READINESS = [
@@ -52,11 +52,11 @@ const nonprofitSchema = new mongoose.Schema({
   // SECTION 2: Eligibility & Documentation
   eligibilityDocs: {
     _id: false,
-    determinationLetter:  { type: FileIdRef, default: undefined }, // EIN/501(c)(3) letter (pdf/image)
-    taxExemptLetter:      { type: FileIdRef, default: undefined }, // IRS 501(c)(3) (pdf/image)
-    goodStandingCert:     { type: FileIdRef, default: undefined }, // optional (pdf/image)
-    impactSummary:        { type: FileIdRef, default: undefined }, // PDF
-    mediaKit:             [{ type: FileIdRef, default: undefined }], // up to 5 files (image/pdf)
+    determinationLetter:  { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    taxExemptLetter:      { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    goodStandingCert:     { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    impactSummary:        { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    mediaKit:             [{ _id: false, url: { type: String } }], // up to 5 S3 URLs
   },
 
   // SECTION 3: Participation Readiness (>= 5)

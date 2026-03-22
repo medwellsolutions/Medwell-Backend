@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
-const { FileIdRef, Details } = require('./ParticipantVetting');
+const { Details } = require('./ParticipantVetting');
 
 const MEMBERSHIP_PARTICIPATION_OPTIONS = [
   "Agree to contribute a % community impact fee (donations toward nonprofits)",
@@ -91,12 +91,12 @@ const supplierSchema = new mongoose.Schema({
     // If you need at least one: validate: { validator: arr => Array.isArray(arr) && arr.length >= 1, message: 'Select at least one category.' }
   },
 
-  // SECTION 3: Brand Guidelines & Legal 
+  // SECTION 3: Brand Guidelines & Legal
   compliance: {
     _id: false,
-    businessLicense:         { type: FileIdRef, default: undefined }, // PDF (set required: true if mandatory)
-    w9:                      { type: FileIdRef, default: undefined }, // PDF
-    supplierDiversityStatus: { type: FileIdRef, default: undefined }, // PDF
+    businessLicense:         { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    w9:                      { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    supplierDiversityStatus: { type: { _id: false, url: String }, default: undefined }, // S3 URL
   },
 
   // SECTION 4: Membership Participation 
@@ -110,14 +110,14 @@ const supplierSchema = new mongoose.Schema({
     }
   },
 
-  // SECTION 5: Product & Service Overview 
+  // SECTION 5: Product & Service Overview
   serviceOverview: {
     _id: false,
-    productCatalog:        { type: FileIdRef, default: undefined }, // PDF
-    pricingTiers:          { type: FileIdRef, default: undefined }, // PDF
-    MOQ:                   { type: FileIdRef, default: undefined }, // PDF
-    warranty:              { type: FileIdRef, default: undefined }, // PDF
-    distributorAgreements: { type: FileIdRef, default: undefined }, // PDF
+    productCatalog:        { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    pricingTiers:          { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    MOQ:                   { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    warranty:              { type: { _id: false, url: String }, default: undefined }, // S3 URL
+    distributorAgreements: { type: { _id: false, url: String }, default: undefined }, // S3 URL
   },
 
   // SECTION 6: Alignment & Mission Fit (100–250 words suggested)
