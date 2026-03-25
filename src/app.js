@@ -13,8 +13,13 @@ const profileRouter = require('./routes/profileRouter.js');
 const commonRouter = require('./routes/commonRouter.js');
 const app = express();
 
+const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    "http://localhost:5173",
+].filter(Boolean);
+
 app.use(cors({
-    origin:"http://localhost:5173",
+    origin: allowedOrigins,
     credentials: true,
 }))
 
